@@ -1,0 +1,7 @@
+Sample output:
+
+pi@xpi ~/xloborg $ cd /home/pi/xloborg/ && ./washingDone.py
+Motion started at time 2013.12.15 20:45:40
+Motion lasted for 30.0 seconds.
+Motion has happened, and is now over!
+
