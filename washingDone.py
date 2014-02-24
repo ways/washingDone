@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: latin-1
 
-import XLoBorg, time
+import XLoBorg, time, datetime
 XLoBorg.printFunction = XLoBorg.NoPrint
 XLoBorg.Init()
 # Read and display the raw magnetometer readings
@@ -12,13 +12,17 @@ XLoBorg.Init()
 from email.mime.text import MIMEText
 from subprocess import Popen, PIPE
 
+#Dictionary sorting
+import pprint
+
 # Configurable values
 tick = 1
-motion_variance_trigger = 0.02
+motion_variance_trigger = 0.01
 silence_variance_trigger = 0.009
-motion_time_trigger = 10 / tick # 5 minutes
-silence_time_trigger = 10 / tick # 1 minute
-verbose = 1
+motion_time_trigger  = 60 / tick # 1 minutes
+silence_time_trigger = 120 / tick # 2 minutes
+verbose = 3
+keephistory = True
 
 def getReading ():
   x,y,z = XLoBorg.ReadAccelerometer()
@@ -59,6 +63,12 @@ def sendMail (msg):
   p = Popen(["/usr/sbin/sendmail", "-t"], stdin=PIPE)
   p.communicate(msg.as_string())
 
+def readableSeconds( seconds ):
+    sec = datetime.timedelta(seconds=int(seconds))
+    d = datetime.datetime(1,1,1) + sec
+
+    return "%d:%d:%d:%d (days:hours:min:sec)" % (d.day-1, d.hour, d.minute, d.second)
+
 # Loop and check variations.
 prev_product = 0
 max_variance = 0
@@ -69,6 +79,7 @@ silence_time_start = None
 unknown_motion_start = None
 unknown_silence_start = None
 motion_time_length = 0
+history = dict () #keep list of motion
 
 while True:
   product, prev_product, variance = updateProduct (product, prev_product, variance)
@@ -76,6 +87,14 @@ while True:
   if 2 < verbose:
     print 'Reading: %+01.4f, previous: %+01.4f, variance: %+01.4f.' \
       % (product, prev_product, variance)
+
+  # Record history, aggregated for each minute.
+  if keephistory:
+    time_now = time.strftime ('%Y%m%d_%H:%M', time.localtime ())
+    prev_history = 0
+    if history.has_key (time_now):
+      prev_history = history [time_now]
+    history [time_now] = abs ( int ( prev_history ) ) + abs (variance)
 
   # Detect motion.
   if abs(variance) > motion_variance_trigger:
@@ -112,16 +131,26 @@ while True:
         unknown_silence_start = None
         silence_time_start = time.localtime ()
         if 0 < verbose:
-          print 'Motion lasted for %s seconds.' % motion_time_length
+          print 'Motion lasted for %s.' % readableSeconds(motion_time_length)
 
-    # If period of vibration is followed by 1 minute of silence, alert.
-  if motion_time_length and silence_time_start and 10 < ( time.mktime (time.localtime ()) - time.mktime (silence_time_start) ):
-    print 'Motion has happened, and is now over!'
-    sendMail ('Am I right?')
+  # If period of vibration is followed by set ammount of silence, alert.
+  if motion_time_length and silence_time_start and silence_time_trigger < ( time.mktime (time.localtime ()) - time.mktime (silence_time_start) ):
+    print '* %s Motion has happened, and is now over!' % time.strftime ('%Y.%m.%d %H:%M:%S')
+
+    formattedhistory = ""
+    if keephistory:
+      pp = pprint.PrettyPrinter(indent=4)
+      formattedhistory = pp.pformat (history)
+
+    sendMail ("Washing is done!\n\nIt lasted for %s. History:\n\n%s" %\
+      ( readableSeconds(motion_time_length), formattedhistory ))
     motion_time_length = 0
+    history.clear ()
   else:
     if 1 < verbose and unknown_silence_start:
-      print 'Unknown silence lasted for %s.' % ( time.mktime (time.localtime ()) - time.mktime (unknown_silence_start) )
+      print '* %s Unknown silence lasted for %s.' % \
+        ( time.strftime ('%Y.%m.%d %H:%M:%S'), \
+        readableSeconds ( time.mktime (time.localtime ()) - time.mktime (unknown_silence_start) ) )
 
   time.sleep (tick)
 
