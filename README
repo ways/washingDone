@@ -1,7 +1,35 @@
-Sample output:
+George WashingDone
 
-pi@xpi ~/xloborg $ cd /home/pi/xloborg/ && ./washingDone.py
-Motion started at time 2013.12.15 20:45:40
-Motion lasted for 30.0 seconds.
+Overview: Notify when washing machine is done by sensing motion and lack of it.
+
+Hardware:
+
+    Raspberry Pi, placed on or close to washing machine
+    http://www.piborg.com/xloborg
+    A washing machine. Use tape to attach pi on side of machine.
+
+Software:
+
+    Install library for xloborg, and put this file in same dir.
+    You also need to make "mail" send mail somewhere it's accepted. By using i.e. ssmtp.
+
+Sample output (alerts will go to e-mail):
+pi@xpi ~$ cd /home/pi/xloborg/ && ./washingDone.py 
+Motion started at time 2013.12.15 20:45:40 
+Motion lasted for 30.0 seconds. 
 Motion has happened, and is now over!
+
+TODO:
+
+    Testing and fine tuning.
+    Make the e-mail more informative.
+    Graph of motion over time?
+
+Alternative names:
+
+    Washingdone
+    WashingDone
+    George WashingDone
+    WashingDone DC
+    Pibrator
 
