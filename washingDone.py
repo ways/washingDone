@@ -20,7 +20,7 @@ tick = 1
 motion_variance_trigger = 0.01
 silence_variance_trigger = 0.009
 motion_time_trigger  = 60 / tick # 1 minutes
-silence_time_trigger = 120 / tick # 2 minutes
+silence_time_trigger = 150 / tick # 2+ minutes
 verbose = 3
 keephistory = True
 
@@ -58,7 +58,7 @@ def updateProduct (product, prev_product, variance):
 def sendMail (msg):
   msg = MIMEText(msg)
   msg["From"] = "washingDone@falkp.no"
-  msg["To"] = "lars@falkp.no"
+  msg["To"] = "washingDone@falkp.no"
   msg["Subject"] = "Washing is done!"
   p = Popen(["/usr/sbin/sendmail", "-t"], stdin=PIPE)
   p.communicate(msg.as_string())
@@ -67,7 +67,8 @@ def readableSeconds( seconds ):
     sec = datetime.timedelta(seconds=int(seconds))
     d = datetime.datetime(1,1,1) + sec
 
-    return "%d:%d:%d:%d (days:hours:min:sec)" % (d.day-1, d.hour, d.minute, d.second)
+    return "%d:%d:%d:%d (days:hours:min:sec)" \
+      % (d.day-1, d.hour, d.minute, d.second)
 
 # Loop and check variations.
 prev_product = 0
@@ -107,7 +108,10 @@ while True:
     unknown_silence_start = None
 
     # Check for some time to make sure (also keeps first reading from triggering motion).
-    if not motion_time_start and unknown_motion_start and ( time.mktime (time.localtime ()) - time.mktime (unknown_motion_start) ) > motion_time_trigger:
+    if not motion_time_start \
+      and unknown_motion_start \
+      and ( time.mktime (time.localtime ()) - time.mktime (unknown_motion_start) ) > motion_time_trigger:
+
       motion_time_start = time.localtime ()
       if 0 < verbose:
         print 'Motion started at time %s' % \
@@ -124,7 +128,10 @@ while True:
     unknown_motion_start = None
 
     # Check for some time to make sure
-    if motion_time_start and unknown_silence_start and ( time.mktime (time.localtime ()) - time.mktime (unknown_silence_start) ) > silence_time_trigger:
+    if motion_time_start \
+      and unknown_silence_start \
+      and ( time.mktime (time.localtime ()) - time.mktime (unknown_silence_start) ) > silence_time_trigger:
+
       if abs (variance) < silence_variance_trigger:
         motion_time_length = time.mktime (time.localtime ()) - time.mktime (motion_time_start)
         motion_time_start = None
@@ -134,8 +141,12 @@ while True:
           print 'Motion lasted for %s.' % readableSeconds(motion_time_length)
 
   # If period of vibration is followed by set ammount of silence, alert.
-  if motion_time_length and silence_time_start and silence_time_trigger < ( time.mktime (time.localtime ()) - time.mktime (silence_time_start) ):
-    print '* %s Motion has happened, and is now over!' % time.strftime ('%Y.%m.%d %H:%M:%S')
+  if motion_time_length \
+    and silence_time_start \
+    and silence_time_trigger < ( time.mktime (time.localtime ()) - time.mktime (silence_time_start) ):
+
+    print '* %s Motion has happened, and is now over!' \
+      % time.strftime ('%Y.%m.%d %H:%M:%S')
 
     formattedhistory = ""
     if keephistory:
@@ -147,10 +158,12 @@ while True:
     motion_time_length = 0
     history.clear ()
   else:
-    if 1 < verbose and unknown_silence_start:
+
+    if unknown_silence_start and 1 < verbose:
       print '* %s Unknown silence lasted for %s.' % \
         ( time.strftime ('%Y.%m.%d %H:%M:%S'), \
         readableSeconds ( time.mktime (time.localtime ()) - time.mktime (unknown_silence_start) ) )
+    if unknown_silence_start and silence_time_trigger < ( time.mktime (time.localtime ()) - time.mktime (unknown_silence_start) ):
+      history.clear ()
 
   time.sleep (tick)
-
